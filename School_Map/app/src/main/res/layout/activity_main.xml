@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <com.baidu.mapapi.map.MapView
+        android:id="@+id/bmapView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="true" />
+
+    <Button
+        android:id="@+id/GeneralBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/GeneralBtn_text"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentRight="true"
+        android:onClick="onClick"/>
+
+    <Button
+        android:id="@+id/SatelliteBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/SatelliteBtn_text"
+        android:layout_below="@+id/GeneralBtn"
+        android:layout_alignRight="@+id/GeneralBtn"
+        android:onClick="onClick"/>
+
+    <Switch
+        android:id="@+id/GpsButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/SatelliteBtn"
+        android:layout_alignRight="@+id/GeneralBtn"
+        app:srcCompat="@android:drawable/presence_invisible"
+        android:onClick="onClick"
+        android:text="@string/Switch_text" />
+</RelativeLayout>
