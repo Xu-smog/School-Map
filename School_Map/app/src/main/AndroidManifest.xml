@@ -15,14 +15,21 @@
 
     <application
         android:allowBackup="true"
+        android:screenOrientation="portrait"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <service android:name="com.baidu.location.f"
+        <service
+            android:name="com.baidu.location.f"
             android:enabled="true"
-            android:process=":remote"/>
+            android:process=":remote" >
+            <intent-filter>
+                <action android:name="com.baidu.location.service_v2.2" >
+                </action>
+            </intent-filter>
+        </service>
         <meta-data android:name="com.baidu.lbsapi.API_KEY"
             android:value="eWSvr5y5NSEGhvGeB61p9cYCez8wEU9o"/>
         <activity android:name=".MainActivity">
