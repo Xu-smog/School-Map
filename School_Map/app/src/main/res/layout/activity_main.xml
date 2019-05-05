@@ -42,6 +42,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/GeneralBtn_text"
+        android:textSize="15dp"
         android:layout_below="@+id/topLinearLayout"
         android:layout_alignParentRight="true"
         android:onClick="onClick"/>
@@ -51,6 +52,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/SatelliteBtn_text"
+        android:textSize="15dp"
         android:layout_below="@+id/GeneralBtn"
         android:layout_alignRight="@+id/GeneralBtn"
         android:onClick="onClick"/>
@@ -63,4 +65,32 @@
         android:layout_alignRight="@+id/GeneralBtn"
         app:srcCompat="@android:drawable/ic_dialog_map"
         android:onClick="onClick" />
+
+    <LinearLayout
+        android:layout_width="240dp"
+        android:layout_height="50dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerInParent="true"
+        android:layout_marginBottom="70dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/leftBottomButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/leftBottomButtonText"
+            android:textSize="20dp"
+            android:background="@drawable/left_button"
+            android:onClick="onClick" />
+
+        <Button
+            android:id="@+id/rightBottomButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/rightBottomButtonText"
+            android:textSize="20dp"
+            android:background="@drawable/right_button"
+            android:onClick="onClick" />
+    </LinearLayout>
+
 </RelativeLayout>

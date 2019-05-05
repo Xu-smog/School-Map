@@ -1,17 +1,24 @@
 package com.xu.school_map;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.location.LocationManager;
+import android.os.Build;
 import android.provider.Settings;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.View;
 import android.widget.AdapterView;
@@ -20,12 +27,13 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ZoomControls;
 
 import com.baidu.location.BDAbstractLocationListener;
 import com.baidu.location.BDLocation;
-import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.SDKInitializer;
@@ -39,20 +47,33 @@ import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
 import com.baidu.mapapi.map.BaiduMapOptions;
 import com.baidu.mapapi.map.MapStatusUpdate;
+import com.baidu.mapapi.map.Marker;
 import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationConfiguration;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.map.UiSettings;
 import com.baidu.mapapi.model.LatLng;
-import com.baidu.mapapi.model.LatLngBounds;
-import com.baidu.mapapi.search.sug.OnGetSuggestionResultListener;
-import com.baidu.mapapi.search.sug.SuggestionResult;
-import com.baidu.mapapi.search.sug.SuggestionSearch;
-import com.baidu.mapapi.search.sug.SuggestionSearchOption;
+import com.baidu.mapapi.overlayutil.DrivingRouteOverlay;
+import com.baidu.mapapi.overlayutil.WalkingRouteOverlay;
+import com.baidu.mapapi.search.core.SearchResult;
+import com.baidu.mapapi.search.route.BikingRouteResult;
+import com.baidu.mapapi.search.route.DrivingRoutePlanOption;
+import com.baidu.mapapi.search.route.DrivingRouteResult;
+import com.baidu.mapapi.search.route.IndoorRouteResult;
+import com.baidu.mapapi.search.route.MassTransitRouteResult;
+import com.baidu.mapapi.search.route.OnGetRoutePlanResultListener;
+import com.baidu.mapapi.search.route.PlanNode;
+import com.baidu.mapapi.search.route.RoutePlanSearch;
+import com.baidu.mapapi.search.route.TransitRouteResult;
+import com.baidu.mapapi.search.route.WalkingRoutePlanOption;
+import com.baidu.mapapi.search.route.WalkingRouteResult;
+import com.baidu.mapapi.utils.DistanceUtil;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -68,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
     private MyLocationConfiguration.LocationMode mCurrentMode = MyLocationConfiguration.LocationMode.NORMAL;;
     private int GPS_REQUEST_CODE = 10;
     // 最新一次的经纬度
-    private double mCurrentLantitude;
+    private double mCurrentLatitude;
     private double mCurrentLongitude;
     //方向传感器的监听器
     private MyOrientationListener myOrientationListener;
@@ -80,14 +101,22 @@ public class MainActivity extends AppCompatActivity {
     private AutoCompleteTextView keyWordsView = null;
     private myAdapter<String> sugAdapter = null;
     private PlaceInfo placeInfo=new PlaceInfo();
-    //地球半径
-    private final double EARTH_RADIUS = 6378137;
+    //导航
+    private PlanNode stNode;
+    private PlanNode enNode;
+    private RoutePlanSearch mSearch;
+    private OnGetRoutePlanResultListener onGetRoutePlanResultListener;
+    //权限
+    private static boolean isPermissionRequested = false;
+    //时间间隔
+    private Timer timer;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        requestPermission();
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         SDKInitializer.initialize(getApplicationContext());
 
@@ -107,7 +136,8 @@ public class MainActivity extends AppCompatActivity {
                 String str = adapterView.getItemAtPosition(i).toString();
                 int index=placeInfo.placeMap.get(str);
                 LatLng poi=new LatLng(placeInfo.latitude[index],placeInfo.longitude[index]);
-                createPoi(poi,placeInfo.placeName.get((index)));
+                createPoi(poi,placeInfo.placeName.get(index),"");
+                enNode=PlanNode.withLocation(poi);
                 mBaiduMap.setMapStatus(MapStatusUpdateFactory.newLatLng(poi));
             }
         });
@@ -121,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
             public void onMapClick(LatLng point) {
                 List<Integer> poi=new ArrayList<Integer>();
                 for(int i=0;i<placeInfo.latitude.length;i++) {
-                    if(GetDistance(point.latitude,point.longitude,placeInfo.latitude[i],placeInfo.longitude[i])<100) {
+                    if(DistanceUtil.getDistance(point, new LatLng(placeInfo.latitude[i],placeInfo.longitude[i]))<100) {
                         poi.add(i);
                     }
                 }
@@ -163,6 +193,90 @@ public class MainActivity extends AppCompatActivity {
         useGPS();
         // 初始化传感器
         initOritationListener();
+
+        mSearch = RoutePlanSearch.newInstance();
+        onGetRoutePlanResultListener = new OnGetRoutePlanResultListener() {
+            @Override
+            public void onGetWalkingRouteResult(WalkingRouteResult result) {
+                if (result == null || result.error != SearchResult.ERRORNO.NO_ERROR) {
+                    Toast.makeText(MainActivity.this, "抱歉，未找到结果", Toast.LENGTH_SHORT).show();
+                }
+                if (result.error == SearchResult.ERRORNO.AMBIGUOUS_ROURE_ADDR) {
+                    //起终点或途经点地址有岐义，通过以下接口获取建议查询信息
+                    //result.getSuggestAddrInfo()
+                    Toast.makeText(MainActivity.this, "抱歉，未找到结果", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (result.error == SearchResult.ERRORNO.NO_ERROR) {
+                    //创建WalkingRouteOverlay实例
+                    WalkingRouteOverlay overlay = new WalkingRouteOverlay(mBaiduMap);
+                    if (result.getRouteLines().size() > 0) {
+                        //获取路径规划数据,(以返回的第一条数据为例)
+                        //为WalkingRouteOverlay实例设置路径数据
+                        overlay.setData(result.getRouteLines().get(0));
+                        //在地图上绘制WalkingRouteOverlay
+                        mBaiduMap.clear();
+                        overlay.addToMap();
+                    }
+                }
+            }
+            @Override
+            public void onGetTransitRouteResult(TransitRouteResult transitRouteResult) {
+
+            }
+            @Override
+            public void onGetMassTransitRouteResult(MassTransitRouteResult massTransitRouteResult) {
+
+            }
+            @Override
+            public void onGetDrivingRouteResult(DrivingRouteResult result) {
+                if (result == null || result.error != SearchResult.ERRORNO.NO_ERROR) {
+                    Toast.makeText(MainActivity.this, "抱歉，未找到结果", Toast.LENGTH_SHORT).show();
+                }
+                if (result.error == SearchResult.ERRORNO.AMBIGUOUS_ROURE_ADDR) {
+                    //起终点或途经点地址有岐义，通过以下接口获取建议查询信息
+                    //result.getSuggestAddrInfo()
+                    Toast.makeText(MainActivity.this, "抱歉，未找到结果", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (result.error == SearchResult.ERRORNO.NO_ERROR) {
+                    DrivingRouteOverlay overlay = new DrivingRouteOverlay(mBaiduMap);//路线覆盖物，MyDrivingRouteOverlay代码下面给出
+                    overlay.setData(result.getRouteLines().get(0));
+                    overlay.addToMap();
+                }
+            }
+            @Override
+            public void onGetIndoorRouteResult(IndoorRouteResult indoorRouteResult) {
+
+            }
+            @Override
+            public void onGetBikingRouteResult(BikingRouteResult bikingRouteResult) {
+
+            }
+        };
+
+        mSearch.setOnGetRoutePlanResultListener(onGetRoutePlanResultListener);
+
+        mBaiduMap.setOnMarkerClickListener(new BaiduMap.OnMarkerClickListener() {
+            //marker被点击时回调的方法,若响应点击事件，返回true，否则返回false,默认返回false
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+                getInfoWindoView(marker);
+                return false;
+            }
+        });
+
+        //重复执行
+        timer = new Timer();
+        timer.schedule(new TimerTask(){
+            public void run(){
+                for(int i=0;i<placeInfo.latitude.length;i++) {
+                    if(DistanceUtil.getDistance(new LatLng(mCurrentLatitude,mCurrentLongitude), new LatLng(placeInfo.latitude[i],placeInfo.longitude[i]))<100) {
+                        getInfoWindoView(placeInfo.placeName.get(i),"",new LatLng(placeInfo.latitude[i],placeInfo.longitude[i]));
+                    }
+                }
+            }
+        }, 0,10000);
         //实例化UiSettings类对象
         //mUiSettings = mBaiduMap.getUiSettings();
         //默认显示地图标注
@@ -226,6 +340,15 @@ public class MainActivity extends AppCompatActivity {
             case R.id.GpsButton:
                 openGPSSettings();
                 break;
+            case R.id.leftBottomButton:
+                //构造导航起终点参数对象
+                stNode=PlanNode.withLocation(new LatLng(mCurrentLatitude,mCurrentLongitude));
+                mSearch.walkingSearch((new WalkingRoutePlanOption()).from(stNode).to(enNode));
+                break;
+            case R.id.rightBottomButton:
+                stNode=PlanNode.withLocation(new LatLng(mCurrentLatitude,mCurrentLongitude));
+                mSearch.drivingSearch((new DrivingRoutePlanOption()).from(stNode).to(enNode));
+                break;
         }
     }
 
@@ -249,7 +372,7 @@ public class MainActivity extends AppCompatActivity {
             // 设置定位数据
             mBaiduMap.setMyLocationData(locationData);
             mCurrentAccracy=locationData.accuracy;
-            mCurrentLantitude = locationData.latitude;
+            mCurrentLatitude = locationData.latitude;
             mCurrentLongitude = locationData.longitude;
             // 设置自定义图标
             BitmapDescriptor mCurrentMarker = BitmapDescriptorFactory.fromResource(R.drawable.navi_map_gps_locked);
@@ -273,6 +396,7 @@ public class MainActivity extends AppCompatActivity {
         isOpen = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER);
         return isOpen;
     }
+
     //跳转GPS设置
     private void openGPSSettings() {
         if (checkGPSIsOpen()) {
@@ -329,61 +453,31 @@ public class MainActivity extends AppCompatActivity {
                 MyLocationData locData = new MyLocationData.Builder()
                     .accuracy(mCurrentAccracy/2) // 此处设置开发者获取到的方向信息，顺时针0-360
                     .direction(mXDirection)
-                    .latitude(mCurrentLantitude)
+                    .latitude(mCurrentLatitude)
                     .longitude(mCurrentLongitude).build(); // 设置定位数据
                 mBaiduMap.setMyLocationData(locData); // 设置自定义图标
                 BitmapDescriptor mCurrentMarker = BitmapDescriptorFactory.fromResource(R.drawable.navi_map_gps_locked);
                 MyLocationConfiguration config = new MyLocationConfiguration(mCurrentMode, true, mCurrentMarker);
                 mBaiduMap.setMyLocationConfiguration(config);
+                stNode=PlanNode.withLocation(new LatLng(mCurrentLatitude,mCurrentLongitude));
             }
         });
     }
 
     //地图移动到我的位置,此处可以重新发定位请求，然后定位；直接拿最近一次经纬度，如果长时间没有定位成功，可能会显示效果不好
     private void center2myLoc() {
-         LatLng ll = new LatLng(mCurrentLantitude, mCurrentLongitude);
+         LatLng ll = new LatLng(mCurrentLatitude, mCurrentLongitude);
          MapStatusUpdate u = MapStatusUpdateFactory.newLatLng(ll);
          mBaiduMap.animateMapStatus(u);
     }
 
-    private double rad(double d)
-    {
-        return d * Math.PI / 180.0;
-    }
-
-    private double GetDistance(double lon1,double lat1,double lon2, double lat2)
-    {
-        double radLat1 = rad(lat1);
-        double radLat2 = rad(lat2);
-        double a = radLat1 - radLat2;
-        double b = rad(lon1) - rad(lon2);
-        double s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a/2),2)+Math.cos(radLat1)*Math.cos(radLat2)*Math.pow(Math.sin(b/2),2)));
-        s = s * EARTH_RADIUS;
-        s = Math.round(s * 10000) / 10000;
-        return s;
-    }
-
     //绘制多个marker
-    private void createPois(List<Integer> poi)
-    {
+    private void createPois(@NonNull List<Integer> poi) {
         //创建OverlayOptions的集合
         List<OverlayOptions> options = new ArrayList<OverlayOptions>();
         //构建Marker图标
         BitmapDescriptor bitmap = BitmapDescriptorFactory.fromResource(R.drawable.icon_geo);
-        for(int i:poi)
-        {
-            //用来构造InfoWindow的Button
-            Button button = new Button(getApplicationContext());
-            button.setBackgroundResource(R.drawable.popup);
-            button.setText(placeInfo.placeName.get(i));
-            ColorStateList black =getResources().getColorStateList(R.color.black);
-            button.setTextColor(black);
-            //构造InfoWindow, point 描述的位置点, -100 InfoWindow相对于point在y轴的偏移量
-            InfoWindow mInfoWindow = new InfoWindow(button, new LatLng(placeInfo.latitude[i],placeInfo.longitude[i]), -80);
-
-            //使InfoWindow生效
-            mBaiduMap.showInfoWindow(mInfoWindow);
-
+        for(int i:poi) {
             OverlayOptions option=createOption(i,bitmap);
             //将OverlayOptions添加到list
             options.add(option);
@@ -391,38 +485,142 @@ public class MainActivity extends AppCompatActivity {
         //在地图上批量添加
         mBaiduMap.addOverlays(options);
     }
-    private OverlayOptions createOption(int i,BitmapDescriptor bitmap)
-    {
+
+    private OverlayOptions createOption(int i,BitmapDescriptor bitmap) {
         //构造大量坐标数据
         LatLng point = new LatLng(placeInfo.latitude[i], placeInfo.longitude[i]);
         //创建OverlayOptions属性
-        OverlayOptions option =  new MarkerOptions().position(point).icon(bitmap);
+        Bundle bundle = new Bundle();
+        bundle.putString("name", placeInfo.placeName.get(i));
+        bundle.putString("info","");
+        bundle.putDouble("latitude",placeInfo.latitude[i]);
+        bundle.putDouble("longitude",placeInfo.longitude[i]);
+        OverlayOptions option =  new MarkerOptions().position(point).icon(bitmap).extraInfo(bundle);
         return option;
     }
 
     //单个
-    private void createPoi(LatLng point,String info)
-    {
+    private void createPoi(@NonNull LatLng point, String name, String info) {
         //构建Marker图标
         BitmapDescriptor bitmap = BitmapDescriptorFactory.fromResource(R.drawable.icon_geo);
         //构建MarkerOption，用于在地图上添加Marker
-        OverlayOptions option = new MarkerOptions().position(point).icon(bitmap);
+        Bundle bundle = new Bundle();
+        bundle.putString("name", name);
+        bundle.putString("info",info);
+        bundle.putDouble("latitude",point.latitude);
+        bundle.putDouble("longitude",point.longitude);
+        OverlayOptions option = new MarkerOptions().position(point).icon(bitmap).extraInfo(bundle);
         //在地图上添加Marker，并显示
         mBaiduMap.addOverlay(option);
-
-        //用来构造InfoWindow的Button
-        Button button = new Button(getApplicationContext());
-        button.setBackgroundResource(R.drawable.popup);
-        button.setText(info);
-        ColorStateList black =getResources().getColorStateList(R.color.black);
-        button.setTextColor(black);
-        //构造InfoWindow, point 描述的位置点, -100 InfoWindow相对于point在y轴的偏移量
-        InfoWindow mInfoWindow = new InfoWindow(button, point, -80);
-
-        //使InfoWindow生效
-        mBaiduMap.showInfoWindow(mInfoWindow);
     }
 
+    private void getInfoWindoView(@NonNull Marker marker) {
+        View infoView = LayoutInflater.from(this).inflate(R.layout.info_window_view, null);
+
+        TextView infoTitle = infoView.findViewById(R.id.HeadTextView);
+        TextView infoDetail = infoView.findViewById(R.id.ContentTextView);
+        LinearLayout layoutInfo = infoView.findViewById(R.id.InfoLinerlayout);
+        ImageView navigation = infoView.findViewById(R.id.GoThereView);
+
+        final Bundle bundle=marker.getExtraInfo();
+        final LatLng point=new LatLng(bundle.getDouble("latitude"),bundle.getDouble("longitude"));
+        infoTitle.setText(bundle.getString("name"));
+        infoDetail.setText(bundle.getString("info"));
+
+        layoutInfo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(MainActivity.this, "Click on layoutInfo", Toast.LENGTH_LONG).show();
+
+            }
+        });
+        navigation.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //Toast.makeText(MainActivity.this, "Click on navigation", Toast.LENGTH_LONG).show();
+
+                stNode=PlanNode.withLocation(new LatLng(mCurrentLatitude,mCurrentLongitude));
+                enNode=PlanNode.withLocation(point);
+                //Toast.makeText(MainActivity.this, "Click on navigation"+enNode.getLocation().latitude, Toast.LENGTH_LONG).show();
+                mSearch.walkingSearch((new WalkingRoutePlanOption()).from(stNode).to(enNode));
+            }
+        });
+        //使InfoWindow生效
+        mBaiduMap.showInfoWindow(new InfoWindow(infoView, point, -80));
+    }
+
+    private void getInfoWindoView(String name,String info,final LatLng point) {
+        View infoView = LayoutInflater.from(this).inflate(R.layout.info_window_view, null);
+
+        TextView infoTitle = infoView.findViewById(R.id.HeadTextView);
+        TextView infoDetail = infoView.findViewById(R.id.ContentTextView);
+        LinearLayout layoutInfo = infoView.findViewById(R.id.InfoLinerlayout);
+        ImageView navigation = infoView.findViewById(R.id.GoThereView);
+
+        infoTitle.setText(name);
+        infoDetail.setText(info);
+
+
+        layoutInfo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(MainActivity.this, "Click on layoutInfo", Toast.LENGTH_LONG).show();
+
+            }
+        });
+        navigation.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //Toast.makeText(MainActivity.this, "Click on navigation", Toast.LENGTH_LONG).show();
+
+                stNode=PlanNode.withLocation(new LatLng(mCurrentLatitude,mCurrentLongitude));
+                enNode=PlanNode.withLocation(point);
+                //Toast.makeText(MainActivity.this, "Click on navigation"+enNode.getLocation().latitude, Toast.LENGTH_LONG).show();
+                mSearch.walkingSearch((new WalkingRoutePlanOption()).from(stNode).to(enNode));
+            }
+        });
+        //使InfoWindow生效
+        mBaiduMap.showInfoWindow(new InfoWindow(infoView, point, -80));
+    }
+    // Android6.0之后需要动态申请权限
+    private void requestPermission() {
+        if (Build.VERSION.SDK_INT >= 23 && !isPermissionRequested) {
+
+            isPermissionRequested = true;
+
+            ArrayList<String> permissionsList = new ArrayList<>();
+
+            String[] permissions = {
+                    Manifest.permission.RECORD_AUDIO,
+                    Manifest.permission.ACCESS_NETWORK_STATE,
+                    Manifest.permission.INTERNET,
+                    Manifest.permission.READ_PHONE_STATE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.MODIFY_AUDIO_SETTINGS,
+                    Manifest.permission.WRITE_SETTINGS,
+                    Manifest.permission.ACCESS_WIFI_STATE,
+                    Manifest.permission.CHANGE_WIFI_STATE,
+                    Manifest.permission.CHANGE_WIFI_MULTICAST_STATE
+            };
+
+            for (String perm : permissions) {
+                if (PackageManager.PERMISSION_GRANTED != checkSelfPermission(perm)) {
+                    permissionsList.add(perm);
+                    // 进入到这里代表没有权限.
+                }
+            }
+
+            if (permissionsList.isEmpty()) {
+                return;
+            }
+            else {
+                requestPermissions(permissionsList.toArray(new String[permissionsList.size()]), 0);
+            }
+        }
+    }
 }
 
 
