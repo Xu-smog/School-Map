@@ -12,4 +12,5 @@
     <string name="leftBottomButtonText">步行导航</string>
     <string name="rightBottomButtonText">驾车导航</string>
     <string name="title_activity_details">DetailsActivity</string>
+    <string name="imageTitleText">风景</string>
 </resources>

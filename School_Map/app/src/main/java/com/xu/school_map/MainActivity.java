@@ -1,6 +1,7 @@
 package com.xu.school_map;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -70,6 +71,16 @@ import com.baidu.mapapi.search.route.WalkingRoutePlanOption;
 import com.baidu.mapapi.search.route.WalkingRouteResult;
 import com.baidu.mapapi.utils.DistanceUtil;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
@@ -136,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
                 String str = adapterView.getItemAtPosition(i).toString();
                 int index=placeInfo.placeMap.get(str);
                 LatLng poi=new LatLng(placeInfo.latitude[index],placeInfo.longitude[index]);
-                createPoi(poi,placeInfo.placeName.get(index),"");
+                createPoi(poi,placeInfo.placeName.get(index));
                 enNode=PlanNode.withLocation(poi);
                 mBaiduMap.setMapStatus(MapStatusUpdateFactory.newLatLng(poi));
             }
@@ -492,7 +503,7 @@ public class MainActivity extends AppCompatActivity {
         //创建OverlayOptions属性
         Bundle bundle = new Bundle();
         bundle.putString("name", placeInfo.placeName.get(i));
-        bundle.putString("info","");
+        bundle.putString("info",getInfo(placeInfo.placeName.get(i)));
         bundle.putDouble("latitude",placeInfo.latitude[i]);
         bundle.putDouble("longitude",placeInfo.longitude[i]);
         OverlayOptions option =  new MarkerOptions().position(point).icon(bitmap).extraInfo(bundle);
@@ -500,13 +511,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //单个
-    private void createPoi(@NonNull LatLng point, String name, String info) {
+    private void createPoi(@NonNull LatLng point, String name) {
         //构建Marker图标
         BitmapDescriptor bitmap = BitmapDescriptorFactory.fromResource(R.drawable.icon_geo);
         //构建MarkerOption，用于在地图上添加Marker
         Bundle bundle = new Bundle();
         bundle.putString("name", name);
-        bundle.putString("info",info);
+        bundle.putString("info",getInfo(name));
         bundle.putDouble("latitude",point.latitude);
         bundle.putDouble("longitude",point.longitude);
         OverlayOptions option = new MarkerOptions().position(point).icon(bitmap).extraInfo(bundle);
@@ -530,8 +541,9 @@ public class MainActivity extends AppCompatActivity {
         layoutInfo.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "Click on layoutInfo", Toast.LENGTH_LONG).show();
-
+                Intent intent=new Intent(MainActivity.this,DetailsActivity.class);
+                intent.putExtra("name",bundle.getString("name"));
+                startActivity(intent);
             }
         });
         navigation.setOnClickListener(new View.OnClickListener() {
@@ -549,7 +561,7 @@ public class MainActivity extends AppCompatActivity {
         mBaiduMap.showInfoWindow(new InfoWindow(infoView, point, -80));
     }
 
-    private void getInfoWindoView(String name,String info,final LatLng point) {
+    private void getInfoWindoView(final String name,String info,final LatLng point) {
         View infoView = LayoutInflater.from(this).inflate(R.layout.info_window_view, null);
 
         TextView infoTitle = infoView.findViewById(R.id.HeadTextView);
@@ -564,7 +576,9 @@ public class MainActivity extends AppCompatActivity {
         layoutInfo.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "Click on layoutInfo", Toast.LENGTH_LONG).show();
+                Intent intent=new Intent(MainActivity.this,DetailsActivity.class);
+                intent.putExtra("name",name);
+                startActivity(intent);
 
             }
         });
@@ -621,6 +635,39 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+    private String getInfo(String name)
+    {
+        //Json数据的读写
+        try {
+            InputStreamReader inputStreamReader = new InputStreamReader(getResources().getAssets().open("placeInfo.json"), "UTF-8");
+            BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+            String line;
+            StringBuilder builder = new StringBuilder();
+            while ((line = bufferedReader.readLine()) != null) {
+                builder.append(line);
+            }
+            inputStreamReader.close();
+            bufferedReader.close();
+
+            try {
+                JSONObject jsonObject = new JSONObject(builder.toString());
+                JSONObject place = jsonObject.getJSONObject(name);
+                String text= place.getString("text");
+                return text;
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
+
 }
 
 
