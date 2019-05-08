@@ -32,10 +32,13 @@
 
     </LinearLayout>
 
-    <ImageView
+    <ImageButton
         android:id="@+id/GoThereView"
         android:layout_width="30dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        app:srcCompat="@drawable/gothere" />
+        app:srcCompat="@drawable/gothere">
+        <corners android:radius="20dp" />
+    </ImageButton>
+
 </LinearLayout>
