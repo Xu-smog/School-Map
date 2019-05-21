@@ -7,7 +7,23 @@
 
 1.获得秘钥
 
-。。。
+   在百度地图开发者平台上申请API Key 点击界面的“申请密钥”，进入界面之后，点击“创建应用”按钮 
+
+   将应用类型选择为“Android SDK”，要填写应用名称、发布版本SHA1、开发版本SHA1
+   发布、开发版本的SHA1的查看方式：
+  （1）获取开发版SHA1:
+    输入命令:keytool -list -v -keystore debug.keystore，回车（如果失败请输入debug.keystore所在的完整路径，其在Java安装路径下）
+    输入密钥库口令：android（系统默认）回车。
+ 
+  （2）获取发布版SHA1:
+    创建自己的签名文件 　　　
+    在Android Studio软件中选择Build->Generate Signed APK。点击Next按钮 
+    这里可以选择Create New Key Store或者Choose Existing Key Store，选择存在的KeyStore文件也是可以的，直接选择即可，点击Create new Key Store按钮，创建新的Key
+    
+   查看发布版的SHA1
+    输入命令：keytool -list -v -keystore “创建的发布版的keystore文件的地址”，回车。
+    输入密钥库口令：前面设置的是什么，这里填写什么
+
 
 2.地图基本选项
     
