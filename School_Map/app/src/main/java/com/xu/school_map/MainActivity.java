@@ -274,6 +274,7 @@ public class MainActivity extends AppCompatActivity {
                 if (result.error == SearchResult.ERRORNO.NO_ERROR) {
                     DrivingRouteOverlay overlay = new DrivingRouteOverlay(mBaiduMap);//路线覆盖物，MyDrivingRouteOverlay代码下面给出
                     overlay.setData(result.getRouteLines().get(0));
+                    mBaiduMap.clear();
                     overlay.addToMap();
                 }
             }
@@ -403,6 +404,7 @@ public class MainActivity extends AppCompatActivity {
                 BikeRouteNodeInfo bikeEndNode = new BikeRouteNodeInfo();
                 bikeEndNode.setLocation(endPt);
                 bikeParam = new BikeNaviLaunchParam().startNodeInfo(bikeStartNode).endNodeInfo(bikeEndNode);
+                startBikeNavi();
                 /*
                 stNode=PlanNode.withLocation(new LatLng(mCurrentLatitude,mCurrentLongitude));
                 mSearch.drivingSearch((new DrivingRoutePlanOption()).from(stNode).to(enNode));*/
@@ -463,18 +465,18 @@ public class MainActivity extends AppCompatActivity {
         }
         else { //没有打开则弹出对话框
             new AlertDialog.Builder(this) .setTitle(R.string.notifyTitle) .setMessage(R.string.gpsNotifyMsg) // 拒绝, 退出应用
-                .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        finish();
-                    }
-                }) .setPositiveButton(R.string.setting, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) { //跳转GPS设置界面
-                        Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                        startActivityForResult(intent, GPS_REQUEST_CODE);
-                    }
-                }) .setCancelable(false) .show();
+                    .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            finish();
+                        }
+                    }) .setPositiveButton(R.string.setting, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) { //跳转GPS设置界面
+                    Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                    startActivityForResult(intent, GPS_REQUEST_CODE);
+                }
+            }) .setCancelable(false) .show();
         }
     }
 
@@ -486,8 +488,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void useGPS()
-    {
+    private void useGPS() {
         // 定位初始化
         mLocationClient = new LocationClient(this);
         myMyBDAbstractLocationListener = new MyBDAbstractLocationListener();
@@ -510,10 +511,10 @@ public class MainActivity extends AppCompatActivity {
             public void onOrientationChanged(float x) {
                 mXDirection = (int) x; // 构造定位数据
                 MyLocationData locData = new MyLocationData.Builder()
-                    .accuracy(mCurrentAccracy/2) // 此处设置开发者获取到的方向信息，顺时针0-360
-                    .direction(mXDirection)
-                    .latitude(mCurrentLatitude)
-                    .longitude(mCurrentLongitude).build(); // 设置定位数据
+                        .accuracy(mCurrentAccracy/2) // 此处设置开发者获取到的方向信息，顺时针0-360
+                        .direction(mXDirection)
+                        .latitude(mCurrentLatitude)
+                        .longitude(mCurrentLongitude).build(); // 设置定位数据
                 mBaiduMap.setMyLocationData(locData); // 设置自定义图标
                 BitmapDescriptor mCurrentMarker = BitmapDescriptorFactory.fromResource(R.drawable.navi_map_gps_locked);
                 MyLocationConfiguration config = new MyLocationConfiguration(mCurrentMode, true, mCurrentMarker);
@@ -525,9 +526,9 @@ public class MainActivity extends AppCompatActivity {
 
     //地图移动到我的位置,此处可以重新发定位请求，然后定位；直接拿最近一次经纬度，如果长时间没有定位成功，可能会显示效果不好
     private void center2myLoc() {
-         LatLng ll = new LatLng(mCurrentLatitude, mCurrentLongitude);
-         MapStatusUpdate u = MapStatusUpdateFactory.newLatLng(ll);
-         mBaiduMap.animateMapStatus(u);
+        LatLng ll = new LatLng(mCurrentLatitude, mCurrentLongitude);
+        MapStatusUpdate u = MapStatusUpdateFactory.newLatLng(ll);
+        mBaiduMap.animateMapStatus(u);
     }
 
     //绘制多个marker
@@ -579,7 +580,8 @@ public class MainActivity extends AppCompatActivity {
         TextView infoTitle = infoView.findViewById(R.id.HeadTextView);
         TextView infoDetail = infoView.findViewById(R.id.ContentTextView);
         LinearLayout layoutInfo = infoView.findViewById(R.id.InfoLinerlayout);
-        ImageView navigation = infoView.findViewById(R.id.GoThereView);
+        ImageView walkNavigation = infoView.findViewById(R.id.WalkView);
+        ImageView driveNavigation = infoView.findViewById(R.id.DriveView);
 
         final Bundle bundle=marker.getExtraInfo();
         final LatLng point=new LatLng(bundle.getDouble("latitude"),bundle.getDouble("longitude"));
@@ -594,7 +596,8 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
-        navigation.setOnClickListener(new View.OnClickListener() {
+
+        walkNavigation.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 //Toast.makeText(MainActivity.this, "Click on navigation", Toast.LENGTH_LONG).show();
@@ -603,6 +606,17 @@ public class MainActivity extends AppCompatActivity {
                 enNode=PlanNode.withLocation(point);
                 //Toast.makeText(MainActivity.this, "Click on navigation"+enNode.getLocation().latitude, Toast.LENGTH_LONG).show();
                 mSearch.walkingSearch((new WalkingRoutePlanOption()).from(stNode).to(enNode));
+            }
+        });
+
+        driveNavigation.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                stNode=PlanNode.withLocation(new LatLng(mCurrentLatitude,mCurrentLongitude));
+                enNode=PlanNode.withLocation(point);
+                //Toast.makeText(MainActivity.this, "Click on navigation"+enNode.getLocation().latitude, Toast.LENGTH_LONG).show();
+                mSearch.drivingSearch((new DrivingRoutePlanOption()).from(stNode).to(enNode));
             }
         });
         //使InfoWindow生效
@@ -615,7 +629,8 @@ public class MainActivity extends AppCompatActivity {
         TextView infoTitle = infoView.findViewById(R.id.HeadTextView);
         TextView infoDetail = infoView.findViewById(R.id.ContentTextView);
         LinearLayout layoutInfo = infoView.findViewById(R.id.InfoLinerlayout);
-        ImageView navigation = infoView.findViewById(R.id.GoThereView);
+        ImageView walkNavigation = infoView.findViewById(R.id.WalkView);
+        ImageView driveNavigation = infoView.findViewById(R.id.DriveView);
 
         infoTitle.setText(name);
         infoDetail.setText(info);
@@ -630,7 +645,8 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
-        navigation.setOnClickListener(new View.OnClickListener() {
+
+        walkNavigation.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 //Toast.makeText(MainActivity.this, "Click on navigation", Toast.LENGTH_LONG).show();
@@ -641,9 +657,22 @@ public class MainActivity extends AppCompatActivity {
                 mSearch.walkingSearch((new WalkingRoutePlanOption()).from(stNode).to(enNode));
             }
         });
+
+        driveNavigation.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                stNode=PlanNode.withLocation(new LatLng(mCurrentLatitude,mCurrentLongitude));
+                enNode=PlanNode.withLocation(point);
+                //Toast.makeText(MainActivity.this, "Click on navigation"+enNode.getLocation().latitude, Toast.LENGTH_LONG).show();
+                mSearch.drivingSearch((new DrivingRoutePlanOption()).from(stNode).to(enNode));
+            }
+        });
+
         //使InfoWindow生效
         mBaiduMap.showInfoWindow(new InfoWindow(infoView, point, -80));
     }
+
     // Android6.0之后需要动态申请权限
     private void requestPermission() {
         if (Build.VERSION.SDK_INT >= 23 && !isPermissionRequested) {
@@ -684,8 +713,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private String getInfo(String name)
-    {
+    private String getInfo(String name) {
         //Json数据的读写
         try {
             InputStreamReader inputStreamReader = new InputStreamReader(getResources().getAssets().open("placeInfo.json"), "UTF-8");
@@ -786,7 +814,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onRoutePlanFail(BikeRoutePlanError error) {
-
+                Toast.makeText(MainActivity.this, "GPS信号较弱，请到开阔地带使用", Toast.LENGTH_LONG).show();
             }
 
         });
@@ -807,18 +835,15 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent();
                 intent.setClass(MainActivity.this, WNaviGuideActivity.class);
                 startActivity(intent);
-
             }
 
             @Override
             public void onRoutePlanFail(WalkRoutePlanError error) {
-
+                Toast.makeText(MainActivity.this, "GPS信号较弱，请到开阔地带使用", Toast.LENGTH_LONG).show();
             }
 
         });
     }
 
 }
-
-
 
