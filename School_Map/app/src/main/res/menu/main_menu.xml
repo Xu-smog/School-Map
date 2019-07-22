@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!--搜索菜单-->
+    <item
+        android:id="@+id/action_speak"
+        android:icon="@android:drawable/ic_lock_silent_mode_off"
+        android:orderInCategory="80"
+        android:title="speak"
+        app:showAsAction="ifRoom" />
+</menu>

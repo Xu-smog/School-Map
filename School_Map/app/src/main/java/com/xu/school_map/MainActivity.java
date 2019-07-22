@@ -620,7 +620,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         //使InfoWindow生效
-        mBaiduMap.showInfoWindow(new InfoWindow(infoView, point, -80));
+        mBaiduMap.showInfoWindow(new InfoWindow(infoView, point, -140));
     }
 
     private void getInfoWindoView(final String name,String info,final LatLng point) {
@@ -670,7 +670,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         //使InfoWindow生效
-        mBaiduMap.showInfoWindow(new InfoWindow(infoView, point, -80));
+        mBaiduMap.showInfoWindow(new InfoWindow(infoView, point, -140));
     }
 
     // Android6.0之后需要动态申请权限

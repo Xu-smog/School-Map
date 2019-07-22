@@ -11,9 +11,12 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.model.LatLng;
@@ -46,11 +49,34 @@ public class DetailsActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_details);
 
-        TextView textView= findViewById(R.id.titleView);
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setTitle(name);
+        toolbar.inflateMenu(R.menu.main_menu);
+        toolbar.setOnMenuItemClickListener(new Toolbar.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem menuItem) {
+                switch (menuItem.getItemId()){
+
+                    case R.id.action_speak:
+                        if(play) {
+                            mediaPlayer.stop();
+                            play=false;
+                        }
+                        else {
+                            playSoundByMedia();
+                            play=true;
+                        }
+                        break;
+                }
+                return true;
+            }
+        });
+
+        //TextView textView= findViewById(R.id.titleView);
         TextView descriptionView = findViewById(R.id.descriptionView);
         ImageView imageView=findViewById(R.id.imageView);
 
-        textView.setText(name);
+        //textView.setText(name);
 
         //Json数据的读写
         try {
@@ -90,30 +116,15 @@ public class DetailsActivity extends AppCompatActivity {
         }
     }
 
-    //按钮的单击事件
-    public void onClick(View view) {
-        switch (view.getId()) {
-            //切换地图类型
-            case R.id.audioButton:
-                if(play) {
-                    mediaPlayer.stop();
-                    play=false;
-                }
-                else {
-                    playSoundByMedia();
-                    play=true;
-                }
-                break;
-        }
-    }
-
     private void playSoundByMedia() {
         try {
             mediaPlayer = new MediaPlayer();
             mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
             //mediaPlayer.setOnCompletionListener(beepListener);
             try {
+                //Toast.makeText(DetailsActivity.this, audio, Toast.LENGTH_LONG).show();
                 AssetFileDescriptor file = getResources().getAssets().openFd(audio);
+                //Toast.makeText(DetailsActivity.this, file.toString(), Toast.LENGTH_LONG).show();
                 mediaPlayer.setDataSource(file.getFileDescriptor(), file.getStartOffset(), file.getLength());
                 file.close();
                 mediaPlayer.setVolume(0.50f, 0.50f);

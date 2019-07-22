@@ -26,19 +26,30 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal">
 
+                        <!--
                         <TextView
                             android:id="@+id/titleView"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textSize="40dp" />
 
-                        <ImageButton
-                            android:id="@+id/audioButton"
-                            android:layout_width="wrap_content"
+                         -->
+
+                        <android.support.v7.widget.Toolbar
+                            android:id="@+id/toolbar"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginLeft="50dp"
-                            app:srcCompat="@android:drawable/ic_lock_silent_mode_off"
-                            android:onClick="onClick"/>
+                            android:layout_alignStart="@+id/titleLinearLayout"
+                            android:layout_alignLeft="@id/titleLinearLayout"
+                            android:layout_weight="1"
+                            android:background="@color/colorPrimary"
+                            android:minHeight="60dp"
+                            android:theme="?attr/actionBarTheme">
+
+                        </android.support.v7.widget.Toolbar>
+
+
+
                     </LinearLayout>
 
                     <TextView
@@ -56,7 +67,9 @@
                         android:layout_height="wrap_content"
                         android:layout_alignLeft="@id/titleLinearLayout"
                         android:layout_below="@+id/imageTitleView"
-                        android:adjustViewBounds="true" />
+                        android:adjustViewBounds="true"
+                        android:paddingLeft="20dp"
+                        android:paddingRight="20dp"/>
 
                     <TextView
                         android:id="@+id/descTitleView"
@@ -73,7 +86,9 @@
                         android:layout_height="wrap_content"
                         android:layout_below="@+id/descTitleView"
                         android:layout_alignLeft="@id/titleLinearLayout"
-                        android:textSize="20dp" />
+                        android:textSize="20dp"
+                        android:paddingLeft="20dp"
+                        android:paddingRight="20dp"/>
 
 
 
